@@ -1,0 +1,36 @@
+[package]
+name = "sectarii"
+version = "0.1.0"
+edition = "2024"
+
+[profile.dev]
+opt-level = 1
+codegen-backend = "cranelift"
+
+[profile.dev.package."*"]
+opt-level = 3
+codegen-backend = "llvm"
+
+[profile.release]
+codegen-units = 1
+codegen-backend = "llvm"
+lto = true
+opt-level = 3
+incremental = false
+debug = false
+
+[dependencies]
+rusty_neat = {path = "../rusty_neat"}
+
+bevy = { version = "^0.15", features = ["dynamic_linking", "wayland" ] } #, "trace", "trace_tracy"] }
+avian2d = { version = "^0.2", features = ["simd", "parallel"] }
+# rayon = "^1.10"
+
+bevy_egui = "^0.33"
+egui_extras = { version = "^0.31", features = ["file", "svg"]}
+# egui_plot = "^0.31"
+usvg = "^0.37"
+bevy_pancam = "^0.17"
+iyes_perf_ui = "^0.4"
+rand = "^0.9"
+log = { version = "*", features = ["max_level_debug", "release_max_level_warn"] }
