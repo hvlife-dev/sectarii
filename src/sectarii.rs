@@ -24,7 +24,6 @@ impl Plugin for SectariiPlugin {
             .insert_resource(Neat(neat))
             .insert_resource(UpdateTimer(Timer::from_seconds(60.0, TimerMode::Repeating)))
             .insert_resource(StartupProcedure::default())
-            .insert_resource( BioClock::new(1./2., 4.) )
             .add_systems(Startup, setup_sectarii)
             .add_systems(FixedUpdate, update_system)
             .add_systems(FixedUpdate, sensor_sight)
@@ -127,17 +126,21 @@ fn update_system(
     }
 
     if timer_startup.p0.tick(time.delta()).just_finished() {
-        neat.0.add_input();
-        neat.0.add_input();
-        neat.0.agents.values_mut().for_each(|a| { a.sort_layers(); a.free_nodes_calc(); });
+        neat.0.agents.values_mut().for_each(|a| {
+            if a.size.0 == 6 {a.add_input();}
+            if a.size.0 == 7 {a.add_input();}
+            a.sort_layers(); a.free_nodes_calc();
+        } );
         timer_startup.p2.reset();
     }
     if timer_startup.p1.tick(time.delta()).just_finished() {
-        neat.0.add_input();
-        neat.0.add_input();
-        neat.0.add_input();
-        neat.0.add_input();
-        neat.0.agents.values_mut().for_each(|a| { a.sort_layers(); a.free_nodes_calc(); });
+        neat.0.agents.values_mut().for_each(|a| {
+            if a.size.0 == 8 {a.add_input();}
+            if a.size.0 == 9 {a.add_input();}
+            if a.size.0 == 10 {a.add_input();}
+            if a.size.0 == 11 {a.add_input();}
+            a.sort_layers(); a.free_nodes_calc();
+        } );
         timer_startup.p2.reset();
     }
     timer_startup.p2.tick(time.delta());
@@ -240,7 +243,7 @@ fn sensor_sight(
     });
 }
 
-#[derive(Resource)]
+#[derive(Component, Clone)]
 struct BioClock {timer_short: Timer, timer_long: Timer, state_short: isize, state_long: isize}
 
 impl BioClock {
@@ -275,24 +278,23 @@ impl BioClock {
 
 fn evaluate_neat(
     mut neat: ResMut<Neat>,
-    mut clock: ResMut<BioClock>,
     time: Res<Time>, 
     //graph: Res<Graph>,
     sight: Query<(&Parent, &SensorSight)>,
     mut sectarii: Query<(
         &mut Brain, 
         &mut ExternalForce, &mut ExternalTorque, &Transform, 
-        &LinearVelocity, &AngularVelocity, &Hp, &Satiety, &Stamina
+        &LinearVelocity, &AngularVelocity, &Hp, &Satiety, &Stamina,
+        &mut BioClock
     ), With<Sectarian>>,
 ) {
-    clock.tick(time.delta());
     //let _span = info_span!("eval_neat", name = "eval_neat").entered();
     let inputs = sight.iter().map(|(parent_key, sensor)|{
         let parent = sectarii.get(parent_key.get()).unwrap();
         let ins = vec![ 
             sensor.food.0, sensor.food.1, sensor.sectarian.0, sensor.sectarian.1,
             parent.8.0, 
-            clock.state_short as f32, clock.state_long as f32,
+            parent.9.state_short as f32, parent.9.state_long as f32,
             parent.6.0, parent.7.0,
             parent.0.linvel, parent.0.angvel, 
         ];
@@ -302,7 +304,8 @@ fn evaluate_neat(
     neat.0.check_integrity(&inputs);
     neat.0.forward(&inputs);
 
-    sectarii.par_iter_mut().for_each(|(mut brain, mut force, mut torque, transform, lv, av, _, _, _)|{
+    sectarii.par_iter_mut().for_each(|(mut brain, mut force, mut torque, transform, lv, av, _, _, _, mut clock)|{
+        clock.tick(time.delta());
         let o = neat.0.get_outputs(&brain.key);
         force.apply_force(transform.local_y().truncate().normalize_or_zero() * o[0] * 3.);
         torque.apply_torque(o[1]* 4.);
@@ -313,12 +316,14 @@ fn evaluate_neat(
 
 
 fn spawn_sectarian(commands: &mut Commands, handlers: &ResMut<Handlers>, key: usize, species: usize, transform: Transform){
+    let mut rng = rand::rng();
     let mut e = commands.spawn(Sectarian);
     e.insert(Brain::new(key));
     e.insert(Hp(1_f32));
     e.insert(Stamina(1_f32));
     e.insert(Satiety(1_f32));
     e.insert(Species( species ));
+    e.insert(BioClock::new(rng.random_range(0.4..0.6), rng.random_range(3.9..4.1)));
     e.insert(transform);
     e.insert(Mesh2d( handlers.mesh_sectarii.get(&species).unwrap().clone() ));
     e.insert(MeshMaterial2d( handlers.material_sectarii.get(&species).unwrap().clone() ));

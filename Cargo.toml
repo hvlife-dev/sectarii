@@ -20,7 +20,7 @@ incremental = false
 debug = false
 
 [dependencies]
-rusty_neat = {path = "../rusty_neat"}
+rusty_neat = {path = "../rusty_neat", features = ["visu"]}
 
 bevy = { version = "^0.15", features = ["dynamic_linking", "wayland" ] } #, "trace", "trace_tracy"] }
 avian2d = { version = "^0.2", features = ["simd", "parallel"] }
